@@ -1,0 +1,10 @@
+{
+  "name": "ahanode",
+  "description": "A package dialogue with arduino",
+  "author": "<eric.fetiveau@gmail.com>",
+  "dependencies": {
+    "colors": ">= 0.6.0",
+    "serialport": ">= 0.7.3"
+  },
+  "engine": "node 0.6.12"
+}
