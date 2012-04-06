@@ -1,7 +1,5 @@
 // Constructor
-var Class = function (value1) {
-    this.value1 = value1;
-    };
+var Class = function () {};
 
 
 
@@ -34,7 +32,8 @@ Class.prototype = {
   CidNodeSrc: 0,
   CidNodeDst: 0,
   CidNvBnd: 0,
-  datas: []
+  datas: [],
+  datalen: 0
 };
 
 Class.prototype.createCanMessage = function (cidPri, cidTyp, cidNodeSrc, cidNodeDst, cidDir, cidNvBnd, cidEm) {
@@ -72,10 +71,47 @@ Class.prototype.extractCanMessage = function (id) {
 Class.prototype.loadCanMessage = function (payload) {
   this.canID = (payload[0] & 0xFF) + ((payload[1] & 0xFF) << 8) + ((payload[2] & 0xFF) << 16) + ((payload[3] & 0xFF) << 24);
   this.extractCanMessage(this.canID);
-  var datalen = payload.length - 4;
-  if (datalen > 0) {
-    this.datas = payload.slice(4, datalen);
+  this.datalen = payload.length - 4;
+  if (this.datalen > 0) {
+    this.datas = payload.slice(4, this.datalen);
   }
+};
+
+Class.prototype.getdatas = function () {
+  var datas = [];
+  datas.push(this.canID & 0xff);
+  datas.push(this.canID >>> 8 & 0xff);
+  datas.push(this.canID >>> 16 & 0xff);
+  datas.push(this.canID >>> 24 & 0xff);
+
+  for (var i = 0; i < this.datalen; i++)
+  datas.push(this.datas[i]);
+};
+
+Class.prototype.processmessage = function (payload) {
+  this.loadCanMessage(payload);
+  this.toString();
+};
+
+Class.prototype.toString = function () {
+  console.log(" Object {");
+  console.log(" CidPri   : " + this.CidPri);
+  console.log(" CidTyp     : " + this.CidTyp);
+  console.log(" CidNodeSrc: " + this.CidNodeSrc);
+  if (this.CidTyp === this.CID_TYP_NV) {
+    console.Log(" CidDir: " + this.CidDir);
+    console.log(" CidNvBnd : " + this.CidNvBnd);
+  }
+  else {
+    console.log(" CidNodeDst: " + this.CidNodeDst);
+    console.log(" CidEm : " + this.CidEm);
+  }
+  console.log(" CanID : " + this.canID);
+  var len = this.data.length;
+  for (var i = 0; i < len; i++) {
+    console.log(" Options: " + this.datas[i]);
+  }
+  console.log("}");
 };
 
 // node.js module export

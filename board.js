@@ -2,15 +2,17 @@ var events = require('events'),
     util = require('util'),
     colors = require('colors'),
     serial = require('serialport'),
-    Crc16 = require('./crc16');
-
+    Crc16 = require('./ahaprotocol/crc16');
+//Ahapacket = require('./ahaprotocol/ahapacket');
 /*
  * The main Arduino constructor
  * Connect to the serial port and bind
  * {
    debug: true,
    portUSB: "/dev/ttyUSB0,
-   baudrate: 115200
+   baudrate: 115200,
+   toarduino: toarduinoqueue,
+   fromarduino: fromarduinoqueue
    }
  */
 var Board = function (options) {
@@ -18,7 +20,8 @@ var Board = function (options) {
     this.debug = options && options.debug || false;
     this.portUSB = options && options.portUSB || "/dev/ttyUSB0";
     this.baudrate = options && options.baudrate || 115200;
-    this.writeBuffer = [];
+    this.toarduino = options && options.toarduino;
+    this.fromarduino = options && options.fromarduino;
     this.log('debug', 'debug:' + this.debug);
     this.log('debug', 'portUSB:' + this.portUSB);
     this.log('debug', 'baudrate:' + this.baudrate);
@@ -96,7 +99,8 @@ var Board = function (options) {
                 if (bufferlen - 3 > 0) {
                   // create CAN message
                   this.log('INFO', 'CAN message:' + buffer);
-                  buffer = buffer.slice(1,bufferlen-3);
+                  buffer = buffer.slice(1, bufferlen - 3);
+                  this.fromarduino.push(buffer);
                   //receivedQueue.add(new SerialPacket(payload));
                 }
                 //sendFrame(this.S_FRAME_RR);
@@ -116,6 +120,7 @@ var Board = function (options) {
                   // RR receive ready, packet have only one frame so send
                   // DISC
                   //sentQueue.remove();
+                  this.toarduino.shift();
                   //sendFrame(U_FRAME_DISC);
                   this.outcrc.reset();
                   this.serialport.write(this.FRAME_BOUNDARY);
@@ -141,6 +146,20 @@ var Board = function (options) {
                 case this.S_FRAME_REJ:
                   // REJ rejected
                   //sendFrame(I_FRAME_DATA, sentQueue.peek());
+                  this.outcrc.reset();
+                  this.serialport.write(this.FRAME_BOUNDARY);
+                  this.lastControlByte = this.I_FRAME_DATA;
+                  this.outcrc.update(this.I_FRAME_DATA);
+                  this.serialport.write(this.I_FRAME_DISC);
+                  var datas = this.toarduino[0].getdatas();
+                  var len = datas.length;
+                  for (var d = 0; d < len; d++) {
+                    this.outcrc.update(datas[d]);
+                    this.serialport.write(datas[d]);
+                  }
+                  this.serialport.write(this.outcrc.get() & 0xff);
+                  this.serialport.write(this.outcrc.get() >> 8);
+                  this.serialport.write(this.FRAME_BOUNDARY);
                   break;
                 default:
                   //sendFrame(U_FRAME_DISC);
@@ -189,10 +208,10 @@ var Board = function (options) {
                   break;
                 case this.U_FRAME_UA:
                   if (this.lastControlByte === this.U_FRAME_SABM) {
-                    if (fromCanQueue.count() > 0) {                
-                                          //sendFrame(I_FRAME_DATA, fromCanQueue.peek());
-                        this.outcrc.reset();    
-                           this.serialport.write(this.FRAME_BOUNDARY);
+                    if (romCanQueue.count() > 0) {
+                      //sendFrame(I_FRAME_DATA, fromCanQueue.peek());
+                      this.outcrc.reset();
+                      this.serialport.write(this.FRAME_BOUNDARY);
                     }
                     else {
                       //sendFrame(U_FRAME_DISC);
